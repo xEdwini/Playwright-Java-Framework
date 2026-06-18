@@ -63,7 +63,7 @@ public final class InventoryPage extends BasePage {
 
     public void openProduct(String productName) {
         click(item(productName).getByRole(
-            AriaRole.LINK, new Locator.GetByRoleOptions().setName(productName)), "Product " + productName);
+                AriaRole.LINK, new Locator.GetByRoleOptions().setName(productName)).first(), "Product " + productName);
     }
 
     public void sort(String value) {

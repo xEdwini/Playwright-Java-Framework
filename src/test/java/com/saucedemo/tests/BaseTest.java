@@ -43,6 +43,7 @@ public abstract class BaseTest {
     void setUp() {
         ArtifactPaths.ensureCreated();
         playwright = Playwright.create();
+        playwright.selectors().setTestIdAttribute("data-test");
         browser = browserType().launch(new BrowserType.LaunchOptions()
             .setHeadless(CONFIG.headless)
             .setSlowMo((double) CONFIG.slowMoMs));
