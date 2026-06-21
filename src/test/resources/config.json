@@ -5,7 +5,7 @@
   "slowMoMs": 0,
   "defaultTimeoutMs": 10000,
   "navigationTimeoutMs": 20000,
-  "recordVideo": false,
+  "recordVideo": true,
   "traceOnFailure": true,
   "screenshotOnFailure": true,
   "viewportWidth": 1440,

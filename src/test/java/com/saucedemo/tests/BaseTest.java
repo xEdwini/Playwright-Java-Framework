@@ -4,6 +4,7 @@ import com.microsoft.playwright.*;
 import com.saucedemo.config.TestConfig;
 import com.saucedemo.model.CheckoutCustomer;
 import com.saucedemo.pages.*;
+import com.saucedemo.reporting.ExtentReportManager;
 import com.saucedemo.util.ArtifactPaths;
 import io.qameta.allure.Allure;
 import org.junit.jupiter.api.*;
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -40,17 +42,19 @@ public abstract class BaseTest {
     private boolean traceStarted;
 
     @BeforeEach
-    void setUp() {
+    void setUp(TestInfo testInfo) {
         ArtifactPaths.ensureCreated();
+        ExtentReportManager.start(testInfo.getDisplayName());
+
         playwright = Playwright.create();
         playwright.selectors().setTestIdAttribute("data-test");
         browser = browserType().launch(new BrowserType.LaunchOptions()
-            .setHeadless(CONFIG.headless)
-            .setSlowMo((double) CONFIG.slowMoMs));
+                .setHeadless(CONFIG.headless)
+                .setSlowMo((double) CONFIG.slowMoMs));
 
         Browser.NewContextOptions options = new Browser.NewContextOptions()
-            .setViewportSize(CONFIG.viewportWidth, CONFIG.viewportHeight)
-            .setIgnoreHTTPSErrors(false);
+                .setViewportSize(CONFIG.viewportWidth, CONFIG.viewportHeight)
+                .setIgnoreHTTPSErrors(false);
 
         if (CONFIG.recordVideo) {
             options.setRecordVideoDir(ArtifactPaths.VIDEOS);
@@ -66,9 +70,9 @@ public abstract class BaseTest {
 
         if (CONFIG.traceOnFailure) {
             context.tracing().start(new Tracing.StartOptions()
-                .setScreenshots(true)
-                .setSnapshots(true)
-                .setSources(true));
+                    .setScreenshots(true)
+                    .setSnapshots(true)
+                    .setSources(true));
             traceStarted = true;
         }
 
@@ -93,6 +97,7 @@ public abstract class BaseTest {
                 Path screenshot = ArtifactPaths.SCREENSHOTS.resolve(name + "-" + stamp + ".png");
                 byte[] bytes = page.screenshot(new Page.ScreenshotOptions().setPath(screenshot).setFullPage(true));
                 Allure.addAttachment("Failure screenshot", "image/png", new ByteArrayInputStream(bytes), ".png");
+                ExtentReportManager.attachScreenshot(screenshot);
             }
 
             if (traceStarted) {
@@ -103,12 +108,34 @@ public abstract class BaseTest {
                     context.tracing().stop();
                 }
             }
+
+            if (failed) {
+                Throwable cause = FailureWatcher.cause();
+                ExtentReportManager.fail(cause != null ? cause.getMessage() : "Test failed");
+            } else {
+                ExtentReportManager.pass("Test passed");
+            }
         } catch (Exception e) {
             LOG.warn("Unable to collect failure artifacts.", e);
         } finally {
-            if (context != null) context.close();
+            Video video = (page != null) ? page.video() : null;
+
+            if (context != null) context.close(); // finalises the video file on disk
             if (browser != null) browser.close();
             if (playwright != null) playwright.close();
+
+            if (failed && CONFIG.recordVideo && video != null) {
+                try {
+                    Path renamed = ArtifactPaths.VIDEOS.resolve(name + "-" + stamp + ".webm");
+                    Files.move(video.path(), renamed, StandardCopyOption.REPLACE_EXISTING);
+                    Allure.addAttachment("Failure video", "video/webm", Files.newInputStream(renamed), ".webm");
+                    ExtentReportManager.attachVideo(renamed);
+                } catch (Exception e) {
+                    LOG.warn("Unable to attach video.", e);
+                }
+            }
+
+            ExtentReportManager.flush();
             FailureWatcher.reset();
         }
     }

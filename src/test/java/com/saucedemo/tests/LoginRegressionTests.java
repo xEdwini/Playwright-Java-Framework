@@ -8,6 +8,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 @Epic("SauceDemo")
 @Feature("Login regression")
 @Tag("regression")
@@ -30,8 +32,8 @@ public class LoginRegressionTests extends BaseTest {
 
     @ParameterizedTest(name = "{2}")
     @CsvSource({
-        "'', '', Username is required",
-        "standard_user, '', Password is required"
+            "'', '', Username is required",
+            "standard_user, '', Password is required"
     })
     @Story("TC-LOGIN-006 / TC-LOGIN-008")
     void requiredFieldValidation(String username, String password, String expected) {
@@ -52,6 +54,16 @@ public class LoginRegressionTests extends BaseTest {
     void passwordIsMasked() {
         loginPage.open(CONFIG.baseUrl);
         loginPage.assertPasswordMasked();
+    }
+
+    @Test
+    void validUserCanLogIn() {
+        loginPage.open(CONFIG.baseUrl);
+        loginPage.login("standard_user", "secret_sauce");
+
+        // TEMPORARY — delete after confirming evidence capture works
+        assertEquals(999, inventoryPage.productCount(),
+                "Deliberate failure to verify evidence capture");
     }
 
     @ParameterizedTest
